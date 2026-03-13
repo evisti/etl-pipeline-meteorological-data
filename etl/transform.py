@@ -1,6 +1,6 @@
 import numpy as np
 import pandas as pd
-
+from geopy import distance
 
 
 def date_formatting(df: pd.DataFrame, columns_with_date: list[str]): 
@@ -8,7 +8,7 @@ def date_formatting(df: pd.DataFrame, columns_with_date: list[str]):
     df[columns_with_date] = df[columns_with_date].apply(pd.to_datetime)
 
 
-def drop_duplicates(df: pd.DataFrame, subset_name: str):
+def drop_duplicates(df: pd.DataFrame, subset_name: str=None):
     if subset_name: 
         df.drop_duplicates(subset=[subset_name], inplace=True)
     else:
@@ -27,7 +27,7 @@ def reset_index(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
-def stations_data_cleaning(df: pd.DataFrame):
+def transform_stations(df: pd.DataFrame):
 
     # change date columns dtype to datetime
     columns_with_date = [
@@ -42,26 +42,30 @@ def stations_data_cleaning(df: pd.DataFrame):
     # latitude and longitude
     geo_coordinates(df, 'geometry.coordinates')
 
+    # distance to SPAC
+    location_spac = { # (lat, lon)
+        'ballerup': (55.7341, 12.3890), 
+        'aarhus': (56.1554, 10.2114), 
+        'odense': (55.4034, 10.3987)
+    }
+    df['distanceAarhus'] = df.apply(lambda row: distance.distance((row.latitude, row.longitude), location_spac['aarhus']).km, axis = 1)
+    df['distanceOdense'] = df.apply(lambda row: distance.distance((row.latitude, row.longitude), location_spac['odense']).km, axis = 1)
+    df['distanceBallerup'] = df.apply(lambda row: distance.distance((row.latitude, row.longitude), location_spac['ballerup']).km, axis = 1)
+
     # delete columns we don't want
     df.drop(columns=['type', 'id', 'geometry.type', 'properties.updated'], inplace=True)
 
     # rename columns
     df.rename(lambda s: s.replace('properties.', ''), axis="columns", inplace=True)
-    df.rename(columns={'parameterId': 'parameter'}, inplace=True)
+    df.rename(columns={'parameterId': 'parameters'}, inplace=True)
 
-    # convert list(str) to tuple(str)
-    df['parameter'] = df['parameter'].apply(tuple) # virker fint, men jeg tror nok den brokker sig over at der er en tom tuple nogle gange.
+    # TODO: Replace empty values?
 
-    # TODO: Replace empty values
-
-    # delete dupllicate rows
-    drop_duplicates(df)
-
-    print('Data info:')
-    print(df.info(), '\n')
+    print('\nStation data info:')
+    df.info()
 
 
-def metobs_data_cleaning(df: pd.DataFrame):
+def transform_observations(df: pd.DataFrame):
     
     # change date columns dtype to datetime
     column_with_date = 'properties.observed'
@@ -82,5 +86,5 @@ def metobs_data_cleaning(df: pd.DataFrame):
     # delete dupllicate rows
     drop_duplicates(df)
 
-    print('Data info:')
-    print(df.info(), '\n')
+    print('\nObservation data info:')
+    df.info()

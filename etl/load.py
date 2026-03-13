@@ -3,7 +3,7 @@ from sqlalchemy import MetaData, Table, Column, Integer, String, Float, DateTime
 from db_connection import SQLRunner
 
 
-def define_stations_table(metadata: MetaData) -> Table:
+def stations_table(metadata: MetaData) -> Table:
     table = Table(
         'stations', metadata,
         Column('id', Integer, primary_key=True),
@@ -12,7 +12,7 @@ def define_stations_table(metadata: MetaData) -> Table:
         Column('anemometerHeight', Float),
         Column('wmoCountryCode', String(4)),
         Column('operationFrom', DateTime),
-        Column('parameter', ARRAY(String(50))),
+        Column('parameters', ARRAY(String(50))),
         Column('created', DateTime),
         Column('barometerHeight', Float),
         Column('validFrom', DateTime),
@@ -26,13 +26,17 @@ def define_stations_table(metadata: MetaData) -> Table:
         Column('validTo', DateTime),
         Column('status', String(50)),
         Column('longitude', Float),
-        Column('latitude', Float)
+        Column('latitude', Float),
+        Column('distanceAarhus', Float),
+        Column('distanceOdense', Float),
+        Column('distanceBallerup', Float)
     )
     return table
 
-def define_metobs_table(metadata: MetaData) -> Table:
+
+def observations_table(metadata: MetaData) -> Table:
     table = Table(
-        'metobs', metadata,
+        'observations', metadata,
         Column('id', Integer, primary_key=True),
         Column('observed', DateTime),
         Column('parameter', String(50)),
@@ -44,15 +48,20 @@ def define_metobs_table(metadata: MetaData) -> Table:
     return table
 
 
-def create_tables(sql_runner: SQLRunner, metadata: MetaData):
-    metadata.create_all(sql_runner.engine)
+def drop_tables(sql_runner: SQLRunner, metadata: MetaData):
+    metadata.reflect(sql_runner.engine)
+    metadata.drop_all(sql_runner.engine)
+
+
+def create_tables(sql_runner: SQLRunner, metadata: MetaData, dropfirst: bool=True):
+    engine = sql_runner.engine
+    
+    if dropfirst: drop_tables(engine, metadata)
+    
+    metadata.create_all(engine)
 
     print('Tables created:', end=' ')
     print(*metadata.tables.keys(), sep=', ')
-
-
-def drop_table(table_name):
-    pass
 
 
 def load_to_sql(sql_runner: SQLRunner, table: Table, df: pd.DataFrame):
