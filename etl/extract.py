@@ -1,6 +1,8 @@
 import requests
 import pandas as pd
 from datetime import datetime
+from configparser import ConfigParser
+from pathlib import Path
 
 
 def _make_request(url: str, params: dict, headers: str=None):
@@ -8,25 +10,19 @@ def _make_request(url: str, params: dict, headers: str=None):
     Submit GET request with url and parameters, and convert result to DataFrame
     '''
     timeout =  10 # seconds
-    try:
-        response = requests.get(url, params=params, headers=headers, timeout=timeout) # prøv evt. med stream=True og iter_content(chunck_size)
-        print('Fetching URL:', response.url)
-        response.raise_for_status()
-    except requests.exceptions.HTTPError as e:
-        print('Error: HTTP\n', e)
-    except requests.exceptions.ReadTimeout as e:
-        print('Error: Request time out\n', e)
-    except requests.exceptions.ConnectionError as e:
-        print('Error: Connection\n', e)
-    except requests.exceptions.RequestException as e:
-        print('Error: Exception request\n', e)
+    
+    response = requests.get(url, params=params, headers=headers, timeout=timeout)
+    print('Fetching URL:', response.url)
+    response.raise_for_status()
 
     # decode json response
     return response.json()
     
 
 def _normalize_response(response, key: str) -> pd.DataFrame:
-    '''Convert to DataFrame'''
+    '''
+    Json to DataFrame
+    '''
     df = pd.json_normalize(response[key])
     if df.empty:
         print('No data')
@@ -35,19 +31,25 @@ def _normalize_response(response, key: str) -> pd.DataFrame:
 
 
 def _construct_datetime_argument(from_time: datetime=None, to_time: datetime=None) -> str:
-    '''Convert datetime to ISO format string'''
+    '''
+    Convert datetime to ISO format string
+    '''
     if from_time and to_time:
         return f'{from_time.isoformat()}Z/{to_time.isoformat()}Z'
+    
     elif from_time and not to_time:
         return f'{from_time.isoformat()}Z'
+    
     elif not from_time and to_time:
         return f'{to_time.isoformat()}Z'
+    
     else: 
         return None
 
 
 def get_stations(base_url, station_id: str=None) -> pd.DataFrame:
-    print('\nStations - Extract')
+    print('\nExtract Stations')
+
     # define query parameters for the request
     query_params = {}
     if station_id: query_params['stationId'] = station_id
@@ -63,7 +65,8 @@ def get_stations(base_url, station_id: str=None) -> pd.DataFrame:
 
 
 def get_observations(base_url, parameter: str, station_id: str, from_time: datetime, to_time: datetime, limit: int=5000) -> pd.DataFrame:
-    print('\nObservations - Extract')
+    print('\nExtract Observations')
+
     # define query parameters for the request
     query_params = {
         'datetime' : _construct_datetime_argument(from_time=from_time, to_time=to_time),
@@ -89,20 +92,33 @@ def get_observations(base_url, parameter: str, station_id: str, from_time: datet
         url = response['links'][-1]['href']
         query_params = {}
 
+    # concatenate dataframes
     df = pd.concat(dfs, axis='rows')
     print('Records:', len(df))
 
     return df
 
 
-def get_spac(url, from_time: datetime=None, to_time: datetime=None):
-    print('\nSPAC - Extract')
+def get_spac(url, from_time: datetime=None, to_time: datetime=None, limit: int=5000):
+    print('\nExtract SPAC')
+    
+    # get authorization token from configuration file
+    config_file = Path(__file__).parents[1] / 'spac_config.ini'
+    config = ConfigParser()
+
+    if not config_file.exists():
+        raise FileNotFoundError(f"Configuration file '{config_file}' not found.")
+    else:
+        config.read(config_file)
+    
+    token = config['SPAC']['Token']
+
     # define authorization token
-    token = 'token'
     headers = {'Authorization': f'Bearer {token}'}
 
     # define query parameters for the request
-    query_params = {'limit': 5000} # maximum number of records to return
+    query_params = {}
+    if limit: query_params['limit'] = limit # maximum number of records to return
     if from_time: query_params['from'] = _construct_datetime_argument(from_time=from_time)
 
     # retrieve data
