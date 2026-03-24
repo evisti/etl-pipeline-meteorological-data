@@ -37,8 +37,7 @@ df = pd.DataFrame(sql_runner.run_query(query))
 #| fig-cap: "Active stations in Denmark, Greenland, and the Faroe Islands"
 import pandas as pd
 import geopandas as gpd
-from ipyleaflet import Map, basemaps, GeoData, Popup
-from ipywidgets import widgets
+from ipyleaflet import Map, basemaps, GeoData
 
 # define map of Denmark, Greenland, and the Faroe Islands
 m = Map(basemap=basemaps.CartoDB.Positron, center=(68, -16), zoom=3)
