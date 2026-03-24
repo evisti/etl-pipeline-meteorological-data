@@ -1,0 +1,202 @@
+---
+title: "DMI data"
+format:
+  html:
+    code-fold: true
+jupyter: python3
+---
+
+## Overview of DMI stations
+
+For detailed info about the stations and the observation parameters, [see DMI's documentation](dmi.dk/friedata/dokumentation/meteorological-observations-data)
+
+```{python}
+# create connection to database
+
+from pathlib import Path
+from helper_functions import read_file
+from db_connection import SQLRunner, get_engine
+
+config_file = Path('./db_config.ini')
+sql_runner = SQLRunner(get_engine(config_file))
+```
+
+
+Stations in Denmark, Greenland, and the Faroe Islands, see @fig-stations.
+```{python}
+import pandas as pd
+
+# query station data
+query = read_file(Path('sql_queries/active_stations.sql'))
+df = pd.DataFrame(sql_runner.run_query(query))
+```
+
+
+```{python}
+#| label: fig-stations
+#| fig-cap: "Active stations in Denmark, Greenland, and the Faroe Islands"
+import pandas as pd
+import geopandas as gpd
+from ipyleaflet import Map, basemaps, GeoData, Popup
+from ipywidgets import widgets
+
+# define map of Denmark, Greenland, and the Faroe Islands
+m = Map(basemap=basemaps.CartoDB.Positron, center=(68, -16), zoom=3)
+
+# create geopandas dataframe
+gdf = gpd.GeoDataFrame(
+  df[['latitude', 'longitude', 'stationId', 'name', 'type']], 
+  geometry=gpd.points_from_xy(df.longitude, df.latitude)
+  )
+
+geo_data = GeoData(geo_dataframe = gdf,
+    style={'color':'black', 'radius':5, 'fillColor':'#3366cc', 'opacity':0.5, 'weight':1.9, 'fillOpacity':0.6},
+    hover_style={'fillColor':'red' ,'fillOpacity':0.5},
+    point_style={'radius':5, 'color':'red', 'fillOpacity':0.8, 'fillColor':'blue', 'weight':3}
+    )
+
+m.add(geo_data)
+```
+
+
+
+The stations closest to the three SPAC locations in Aarhus, Odense, and Ballerup
+```{python}
+
+# the stations nearest SPAC Aarhus, Odense, and Ballerup
+stations_nearest_spac = pd.concat([
+  df.sort_values('distanceAarhus').head(5), 
+  df.sort_values('distanceOdense').head(5),
+  df.sort_values('distanceBallerup').head(5)])
+
+# define map of Denmark
+m = Map(basemap=basemaps.CartoDB.Positron, center=(56, 11.2), zoom=6) # Denmark
+
+# create geopandas dataframe
+gdf2 = gpd.GeoDataFrame(
+  stations_nearest_spac[['latitude', 'longitude', 'stationId', 'name', 'type']], 
+  geometry=gpd.points_from_xy(stations_nearest_spac.longitude, stations_nearest_spac.latitude)
+  )
+
+# all stations in Denmark
+geo_data1 = GeoData(geo_dataframe = gdf,
+    style={'color':'black', 'radius':5, 'fillColor':'#3366cc', 'opacity':0.2, 'weight':1.9, 'fillOpacity':0.2},
+    hover_style={'fillColor':'red' ,'fillOpacity':0.5},
+    point_style={'radius':5, 'color':'red', 'fillOpacity':0.2, 'fillColor':'blue', 'weight':3}
+    )
+
+# only the stations closest to SPAC
+geo_data2 = GeoData(geo_dataframe = gdf2,
+    style={'color':'black', 'radius':5, 'fillColor':'#A55C48', 'opacity':0.3, 'weight':1.9, 'fillOpacity':0.8},
+    hover_style={'fillColor':'red' ,'fillOpacity':0.5},
+    point_style={'radius':5, 'color':'red', 'fillOpacity':0.8, 'fillColor':'blue', 'weight':3}
+    )
+
+m.add(geo_data1)
+m.add(geo_data2)
+```
+
+
+The five nearest stations to Aarhus:
+```{python}
+df_render = df.copy()
+
+# rename columns for visual
+df_render.rename(
+  columns={
+    'stationId': 'Station ID', 
+    'type': 'Type',
+    'name': 'Name',
+    'operationFrom': 'Operation from',
+    'parameters': 'Parameters',
+    'distanceAarhus': 'Distance to Aarhus'
+    }, inplace=True)
+
+df_render['Operation from'] = df_render['Operation from'].apply(lambda x: x.date())
+
+# pick the five stations nearest Aarhus
+df_render[['Station ID', 'Type', 'Name', 'Operation from', 'Parameters', 'Distance to Aarhus']].sort_values('Distance to Aarhus').head(5).set_index('Station ID')
+```
+
+
+All the parameters for the Ødum Synop station: 
+```{python}
+# parameters for the Ødum Synop station
+display(*df[df['stationId'] == '06072']['parameters'])
+```
+
+
+
+## Aarhus 2025
+Dayplots for various parameters
+
+```{python}
+import dayplot as dp
+import matplotlib.pyplot as plt
+import pandas as pd
+
+
+def query_to_df(sql_file):
+  query = read_file(Path(sql_file))
+  return pd.DataFrame(sql_runner.run_query(query))
+
+
+def make_dayplot(df, parameter, color, title, vmax=None):
+
+  # Upsample to 365 days
+  df.set_index('date', inplace = True)
+  df = df.asfreq('D', fill_value=0)
+
+  # define figure
+  fig, ax = plt.subplots(figsize=(10, 4))
+  ax.set_title(title, loc='left')
+  c = dp.calendar(
+      dates=df.index,
+      values=df[parameter],
+      start_date="2025-01-01",
+      end_date="2025-12-31",
+      week_starts_on='Monday',
+      month_grid=True,
+      cmap=color,
+      vmin=0,
+      vmax=vmax,
+      color_for_none='white',
+      ax=ax,
+  )
+  plt.tight_layout()
+  plt.show()
+
+# Precipitation
+df = query_to_df('sql_queries/accumulated_precip_aarhus_2025.sql')
+make_dayplot(df, parameter='accum_precip', color='BuGn', title='Accumulated precipitation')
+print('Rainy days:', len(df[df['accum_precip'] > 0]))
+print(f'Max accumulated rain in one day: {df['accum_precip'].max():.1f} mm')
+
+# Sunshine
+df = query_to_df('sql_queries/sunshine_aarhus_2025.sql')
+make_dayplot(df, parameter='sunshine', color='Oranges', title='Sun hours')
+print('Sunmy days:', len(df[df['sunshine'] > 0]))
+print(f'Max accumulated sun hours in one day: {df['sunshine'].max() / 60:.1f} h')
+
+# Snow depth
+df = query_to_df('sql_queries/snow_depth_aarhus_2025.sql')
+df.replace(-1, 0.25, inplace=True)  # the code -1 means "less than 0.5 cm" --> I'll set it to 0.25
+make_dayplot(df, parameter='snow', color='Blues', title='Snow depth')
+print('Snowy days:', len(df[df['snow'] > 0]))
+print(f'Max snow depth: {df['snow'].max():.1f} cm')
+
+# Max wind
+df = query_to_df('sql_queries/max_wind_speed_aarhus_2025.sql')
+make_dayplot(df, parameter='wind_max', color='BuPu', title='Daily averaged wind gusts')
+print('Windy days*:', len(df[df['wind_max'] > 0]))
+max_gusts = df['wind_max'].max()
+print(f'Max average gust speed*: {max_gusts:.1f} m/s')
+
+# Mean wind
+df = query_to_df('sql_queries/mean_wind_speed_aarhus_2025.sql')
+make_dayplot(df, parameter='wind_speed', color='BuPu', title='Daily averaged mean wind', vmax=max_gusts)
+print('Windy days*:', len(df[df['wind_speed'] > 0]))
+print(f'Max average wind speed*: {df['wind_speed'].max():.1f} m/s')
+```
+
+
