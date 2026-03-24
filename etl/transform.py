@@ -88,8 +88,6 @@ def clean_observations(df: pd.DataFrame):
     df.rename(lambda s: s.replace('properties.', ''), axis="columns", inplace=True)
     df.rename(columns={'parameterId': 'parameter'}, inplace=True)
 
-    # TODO: Replace empty values
-
     # delete dupllicate rows
     drop_duplicates(df)
 

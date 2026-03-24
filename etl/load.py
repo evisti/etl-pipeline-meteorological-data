@@ -3,9 +3,9 @@ from sqlalchemy import MetaData, Table, Column, Integer, String, Float, DateTime
 from db_connection import SQLRunner
 
 
-def stations_table(metadata: MetaData) -> Table:
+def stations_table(metadata: MetaData, name='stations') -> Table:
     table = Table(
-        'stations', metadata,
+        name, metadata,
         Column('id', Integer, primary_key=True),
         Column('owner', String(255)),
         Column('country', String(3)),
@@ -34,9 +34,9 @@ def stations_table(metadata: MetaData) -> Table:
     return table
 
 
-def observations_table(metadata: MetaData) -> Table:
+def observations_table(metadata: MetaData, name='observations') -> Table:
     table = Table(
-        'observations', metadata,
+        name, metadata,
         Column('id', Integer, primary_key=True),
         Column('observed', DateTime),
         Column('parameter', String(50)),
@@ -48,9 +48,9 @@ def observations_table(metadata: MetaData) -> Table:
     return table
 
 
-def spac_table(metadata: MetaData) -> Table:
+def spac_table(metadata: MetaData, name='spac') -> Table:
     table = Table(
-        'spac', metadata,
+        name, metadata,
         Column('id', Integer, primary_key=True),
         Column('timestamp', DateTime),
         Column('BME280.humidity', Float),
@@ -62,14 +62,15 @@ def spac_table(metadata: MetaData) -> Table:
 
 
 def drop_tables(sql_runner: SQLRunner, metadata: MetaData):
-    #metadata.reflect(sql_runner.engine)
     metadata.drop_all(sql_runner.engine)
 
 
 def create_tables(sql_runner: SQLRunner, metadata: MetaData, dropfirst: bool=True):
     engine = sql_runner.engine
 
-    if dropfirst: drop_tables(engine, metadata)
+    if dropfirst: 
+        drop_tables(engine, metadata)
+    
     metadata.create_all(engine)
 
     print('\nTables created:', end=' ')
@@ -78,5 +79,10 @@ def create_tables(sql_runner: SQLRunner, metadata: MetaData, dropfirst: bool=Tru
 
 def load_to_sql(sql_runner: SQLRunner, table: Table, df: pd.DataFrame):
     with sql_runner.engine.begin() as connection:
-        df.to_sql(name=table.name, con=connection, if_exists='append', index=True, index_label='id')
+        df.to_sql(
+            name=table.name, 
+            con=connection, 
+            if_exists='append', 
+            index=True, 
+            index_label='id')
 
