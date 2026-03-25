@@ -28,7 +28,7 @@ import pandas as pd
 
 # query station data
 query = read_file(Path('sql_queries/active_stations.sql'))
-df = pd.DataFrame(sql_runner.run_query(query))
+stations = pd.DataFrame(sql_runner.run_query(query))
 ```
 
 
@@ -45,7 +45,7 @@ m = Map(basemap=basemaps.CartoDB.Positron, center=(68, -16), zoom=3)
 # create geopandas dataframe
 gdf = gpd.GeoDataFrame(
   df[['latitude', 'longitude', 'stationId', 'name', 'type']], 
-  geometry=gpd.points_from_xy(df.longitude, df.latitude)
+  geometry=gpd.points_from_xy(stations.longitude, stations.latitude)
   )
 
 geo_data = GeoData(geo_dataframe = gdf,
@@ -61,12 +61,24 @@ m.add(geo_data)
 
 The stations closest to the three SPAC locations in Aarhus, Odense, and Ballerup
 ```{python}
+from geopy import distance
+
+# calculate distance to SPAC
+location_spac = { # (lat, lon)
+    'ballerup': (55.7341, 12.3890), 
+    'aarhus': (56.1554, 10.2114), 
+    'odense': (55.4034, 10.3987)
+}
+stations['distanceAarhus'] = stations.apply(lambda row: distance.distance((row.latitude, row.longitude), location_spac['aarhus']).km, axis = 1)
+stations['distanceOdense'] = stations.apply(lambda row: distance.distance((row.latitude, row.longitude), location_spac['odense']).km, axis = 1)
+stations['distanceBallerup'] = stations.apply(lambda row: distance.distance((row.latitude, row.longitude), location_spac['ballerup']).km, axis = 1)
+
 
 # the stations nearest SPAC Aarhus, Odense, and Ballerup
 stations_nearest_spac = pd.concat([
-  df.sort_values('distanceAarhus').head(5), 
-  df.sort_values('distanceOdense').head(5),
-  df.sort_values('distanceBallerup').head(5)])
+  stations.sort_values('distanceAarhus').head(5), 
+  stations.sort_values('distanceOdense').head(5),
+  stations.sort_values('distanceBallerup').head(5)])
 
 # define map of Denmark
 m = Map(basemap=basemaps.CartoDB.Positron, center=(56, 11.2), zoom=6) # Denmark
@@ -98,7 +110,7 @@ m.add(geo_data2)
 
 The five nearest stations to Aarhus:
 ```{python}
-df_render = df.copy()
+df_render = stations.copy()
 
 # rename columns for visual
 df_render.rename(
@@ -121,7 +133,7 @@ df_render[['Station ID', 'Type', 'Name', 'Operation from', 'Parameters', 'Distan
 All the parameters for the Ødum Synop station: 
 ```{python}
 # parameters for the Ødum Synop station
-display(*df[df['stationId'] == '06072']['parameters'])
+display(*stations[stations['stationId'] == '06072']['parameters'])
 ```
 
 

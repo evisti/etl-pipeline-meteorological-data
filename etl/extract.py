@@ -5,7 +5,7 @@ from configparser import ConfigParser
 from pathlib import Path
 
 
-def _make_request(url: str, params: dict, headers: str=None):
+def make_request(url: str, params: dict, headers: str=None):
     '''
     Submit GET request with url and parameters, and convert result to DataFrame
     '''
@@ -15,11 +15,10 @@ def _make_request(url: str, params: dict, headers: str=None):
     print('Fetching URL:', response.url)
     response.raise_for_status()
 
-    # decode json response
     return response.json()
     
-
-def _normalize_response(response, key: str) -> pd.DataFrame:
+    
+def normalize_response(response, key: str) -> pd.DataFrame:
     '''
     Json to DataFrame
     '''
@@ -30,7 +29,7 @@ def _normalize_response(response, key: str) -> pd.DataFrame:
     return df
 
 
-def _construct_datetime_argument(from_time: datetime=None, to_time: datetime=None) -> str:
+def construct_datetime_argument(from_time: datetime=None, to_time: datetime=None) -> str:
     '''
     Convert datetime to ISO format string
     '''
@@ -58,8 +57,8 @@ def get_stations(base_url, station_id: str=None) -> pd.DataFrame:
     url = base_url + '/station/items'
 
     # retrive data
-    response = _make_request(url, query_params)
-    records = _normalize_response(response, key='features')
+    response = make_request(url, query_params)
+    records = normalize_response(response, key='features')
 
     return records
 
@@ -69,7 +68,7 @@ def get_observations(base_url, parameter: str, station_id: str, from_time: datet
 
     # define query parameters for the request
     query_params = {
-        'datetime' : _construct_datetime_argument(from_time=from_time, to_time=to_time),
+        'datetime' : construct_datetime_argument(from_time=from_time, to_time=to_time),
         'limit' : limit,  # maximum number of records to return
         'offset': 0}
     if parameter: query_params['parameterId'] = parameter
@@ -81,8 +80,8 @@ def get_observations(base_url, parameter: str, station_id: str, from_time: datet
     # retrieve data
     dfs = []
     while True:
-        response = _make_request(url, query_params)
-        records = _normalize_response(response, key='features')
+        response = make_request(url, query_params)
+        records = normalize_response(response, key='features')
         dfs.append(records)
 
         number_returned = response['numberReturned']
@@ -119,10 +118,10 @@ def get_spac(url, from_time: datetime=None, to_time: datetime=None, limit: int=5
     # define query parameters for the request
     query_params = {}
     if limit: query_params['limit'] = limit # maximum number of records to return
-    if from_time: query_params['from'] = _construct_datetime_argument(from_time=from_time)
+    if from_time: query_params['from'] = construct_datetime_argument(from_time=from_time)
 
     # retrieve data
-    response = _make_request(url, query_params, headers)
-    records = _normalize_response(response, key='records')
+    response = make_request(url, query_params, headers)
+    records = normalize_response(response, key='records')
 
     return records

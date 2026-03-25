@@ -1,4 +1,3 @@
-geopy==2.4.1
 pandas==3.0.1
 psycopg2==2.9.11
 requests==2.32.5
@@ -8,6 +7,7 @@ SQLAlchemy-Utils==0.42.1
 # Data visualization
 dayplot==0.5.1
 geopandas==1.1.3
+geopy==2.4.1
 ipyleaflet==0.20.0
 matplotlib==3.10.8
 

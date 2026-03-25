@@ -1,6 +1,4 @@
-import numpy as np
 import pandas as pd
-from geopy import distance
 
 
 def date_formatting(df: pd.DataFrame, columns_with_date: list[str]): 
@@ -29,7 +27,7 @@ def reset_index(df: pd.DataFrame) -> pd.DataFrame:
 
 def clean_stations(df: pd.DataFrame):
 
-    print('\nStations - Transform')
+    print('\nTransform Stations')
 
     # change date columns dtype to datetime
     columns_with_date = [
@@ -44,16 +42,6 @@ def clean_stations(df: pd.DataFrame):
     # latitude and longitude
     geo_coordinates(df, 'geometry.coordinates')
 
-    # distance to SPAC
-    location_spac = { # (lat, lon)
-        'ballerup': (55.7341, 12.3890), 
-        'aarhus': (56.1554, 10.2114), 
-        'odense': (55.4034, 10.3987)
-    }
-    df['distanceAarhus'] = df.apply(lambda row: distance.distance((row.latitude, row.longitude), location_spac['aarhus']).km, axis = 1)
-    df['distanceOdense'] = df.apply(lambda row: distance.distance((row.latitude, row.longitude), location_spac['odense']).km, axis = 1)
-    df['distanceBallerup'] = df.apply(lambda row: distance.distance((row.latitude, row.longitude), location_spac['ballerup']).km, axis = 1)
-
     # delete columns we don't want
     df.drop(columns=['type', 'id', 'geometry.type', 'properties.updated'], inplace=True)
 
@@ -61,7 +49,7 @@ def clean_stations(df: pd.DataFrame):
     df.rename(lambda s: s.replace('properties.', ''), axis="columns", inplace=True)
     df.rename(columns={'parameterId': 'parameters'}, inplace=True)
 
-    # TODO: Replace empty values?
+    # TODO: Replace missing values?
 
     print('Data info:')
     df.info()
@@ -69,7 +57,7 @@ def clean_stations(df: pd.DataFrame):
 
 def clean_observations(df: pd.DataFrame):
 
-    print('\nObservations - Transform')
+    print('\nTransform Observations')
     
     # reset index
     reset_index(df)
@@ -97,7 +85,7 @@ def clean_observations(df: pd.DataFrame):
 
 def clean_spac(df: pd.DataFrame):
 
-    print('\nSPAC - Transform')
+    print('\nTransform SPAC')
     
     # change date columns dtype to datetime
     column_with_date = 'timestamp'

@@ -26,10 +26,7 @@ def stations_table(metadata: MetaData, name='stations') -> Table:
         Column('validTo', DateTime),
         Column('status', String(50)),
         Column('longitude', Float),
-        Column('latitude', Float),
-        Column('distanceAarhus', Float),
-        Column('distanceOdense', Float),
-        Column('distanceBallerup', Float)
+        Column('latitude', Float)
     )
     return table
 
