@@ -17,17 +17,6 @@ def make_request(url: str, params: dict, headers: str=None):
 
     return response.json()
     
-    
-def normalize_response(response, key: str) -> pd.DataFrame:
-    '''
-    Json to DataFrame
-    '''
-    df = pd.json_normalize(response[key])
-    if df.empty:
-        print('No data')
-
-    return df
-
 
 def construct_datetime_argument(from_time: datetime=None, to_time: datetime=None) -> str:
     '''
@@ -58,12 +47,20 @@ def get_stations(base_url, station_id: str=None) -> pd.DataFrame:
 
     # retrive data
     response = make_request(url, query_params)
-    records = normalize_response(response, key='features')
+    features = response['features']
+    
+    # add timestamp to features
+    features = [{**dic, 'extracted': response['timeStamp']} for dic in features]
+    
+    records = pd.json_normalize(features)
+    
+    if records.empty:
+        print('No data')
 
     return records
 
 
-def get_observations(base_url, parameter: str, station_id: str, from_time: datetime, to_time: datetime, limit: int=5000) -> pd.DataFrame:
+def get_observations(base_url, parameter: str, station_id: str, from_time: datetime, to_time: datetime, limit: int=5000) -> list[dict]:
     print('\nExtract Observations')
 
     # define query parameters for the request
@@ -78,11 +75,15 @@ def get_observations(base_url, parameter: str, station_id: str, from_time: datet
     url = base_url + '/observation/items'
 
     # retrieve data
-    dfs = []
+    data = []
     while True:
         response = make_request(url, query_params)
-        records = normalize_response(response, key='features')
-        dfs.append(records)
+        features = response['features']
+
+        # add timestamp to features
+        features = [{**f, 'extracted': response['timeStamp']} for f in features]
+
+        data += features
 
         number_returned = response['numberReturned']
         if number_returned < limit:
@@ -91,11 +92,9 @@ def get_observations(base_url, parameter: str, station_id: str, from_time: datet
         url = response['links'][-1]['href']
         query_params = {}
 
-    # concatenate dataframes
-    df = pd.concat(dfs, axis='rows')
-    print('Records:', len(df))
+    print('Records:', len(data))
 
-    return df
+    return data
 
 
 def get_spac(url, from_time: datetime=None, to_time: datetime=None, limit: int=5000):
@@ -122,6 +121,8 @@ def get_spac(url, from_time: datetime=None, to_time: datetime=None, limit: int=5
 
     # retrieve data
     response = make_request(url, query_params, headers)
-    records = normalize_response(response, key='records')
+    records = pd.json_normalize(response['records'])
+    if records.empty:
+        print('No data')
 
     return records

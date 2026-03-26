@@ -36,6 +36,7 @@ def observations_table(metadata: MetaData, name='observations') -> Table:
         name, metadata,
         Column('id', Integer, primary_key=True),
         Column('observed', DateTime),
+        Column('extracted', DateTime),
         Column('parameter', String(50)),
         Column('value', Float),
         Column('stationId', String(5)),
@@ -74,7 +75,18 @@ def create_tables(sql_runner: SQLRunner, metadata: MetaData, dropfirst: bool=Tru
     print(*metadata.tables.keys(), sep=', ')
 
 
-def load_to_sql(sql_runner: SQLRunner, table: Table, df: pd.DataFrame):
+def get_max_id_in_table(sql_runner: SQLRunner, table: Table):
+    query = (f'SELECT MAX(id) FROM {table.name};')
+    result = sql_runner.run_query(query)
+    max_index = list(result)[0][0]
+
+    return max_index if max_index else -1
+
+
+def load_to_sql(sql_runner: SQLRunner, table: Table, df: pd.DataFrame, append=True):
+    if append:
+        df.index = df.index + get_max_id_in_table(sql_runner, table) + 1
+    
     with sql_runner.engine.begin() as connection:
         df.to_sql(
             name=table.name, 

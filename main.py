@@ -1,13 +1,12 @@
-import ast
 import pandas as pd
+import json
 
 from datetime import datetime, timedelta
-from glob import glob
 from pathlib import Path
 from sqlalchemy import MetaData
 
 from db_connection import SQLRunner, get_engine
-from helper_functions import save_to_csv
+from helper_functions import read_file, write_file
 from etl.extract import get_stations, get_observations, get_spac
 from etl.transform import clean_stations, clean_observations, clean_spac
 from etl.load import stations_table, observations_table, spac_table, create_tables, load_to_sql
@@ -17,7 +16,8 @@ url_dmi = 'https://opendataapi.dmi.dk/v2/metObs/collections'
 url_spac = 'https://climate.spac.dk/api/records'
 
 
-def extract_single():
+def extract_single(): # virker vist ikke længere
+
     # specify desired start and end time
     start_time = datetime(2025, 1, 1)
     end_time = datetime(2026, 1, 1)
@@ -26,22 +26,16 @@ def extract_single():
     station_id = '23105'
     parameter = None
 
-    # fetch data
-    df_observations = get_observations(url_dmi, parameter, station_id, start_time, end_time)
+    df = get_observations(url_dmi, parameter, station_id, start_time, end_time)
 
-    print(df_observations[df_observations['properties.value'] != 0])
-
-    save_to_csv(
-        df_observations, 
-        save_folder='data/2025_Aarhus_raw', 
-        prefix=f'1_{station_id}', 
-        from_time=start_time, 
-        to_time=end_time)
+    print(df[df['properties.value'] != 0])
 
 
-def extract_multiple():
-    # Extract all observations from 2025 and save to csv files
 
+def extract_multiple(): # Virker fint
+    '''
+    Extract all observations from 2025 and write to files
+    '''
     start_time = datetime(2025, 1, 1)
     station_id = '06072'
     parameter = None # all parameters
@@ -49,38 +43,59 @@ def extract_multiple():
     i = 1
     while True:
         end_time = start_time + timedelta(days=10)
-        df = get_observations(url_dmi, parameter, station_id, start_time, end_time)
+        data = get_observations(url_dmi, parameter, station_id, start_time, end_time)
 
         # save as csv
-        save_folder = 'data/2025_Aarhus_raw'
-        save_to_csv(df, save_folder, prefix=f'{i}_{station_id}', from_time=start_time, to_time=end_time) #TODO: save as json instead of csv
+        savefolder = 'data/2025_Aarhus_raw_json'
+        filename = f'{i}_{station_id}_{start_time.date().isoformat()}_{end_time.date().isoformat()}.json'
+        write_file(json.dumps(data), Path(f'{savefolder}/{filename}'))
+
         if end_time.year == 2026:
             break
 
         start_time = end_time
         i += 1
 
-def transform_multiple():
-    save_folder = 'data/2025_Aarhus_raw'
-    files = glob(f'{save_folder}/*.csv')
 
-    dfs = []
-    for f in files:
+def transform_and_load():
+    savefolder = Path('data/2025_Aarhus_raw_json')
+    files = sorted(savefolder.glob('*.json'))
+
+    # connect to database
+    config_file = Path('./db_config.ini')
+    sql_runner = SQLRunner(get_engine(config_file))
+
+    # create metadata object
+    metadata = MetaData()
+
+    # define tables
+    observations = observations_table(metadata, name='observations')
+
+    # create tables in database
+    create_tables(sql_runner, metadata, dropfirst=True)
+
+    for f in files: 
         print(f)
-        df = pd.read_csv(Path(f), dtype={'properties.stationId': str})
-        df['geometry.coordinates'] = df['geometry.coordinates'].apply(lambda x: ast.literal_eval(x))
+        data = json.loads(read_file(f))
+        df = pd.json_normalize(data)
+        
+        # transform
         clean_observations(df)
-        dfs.append(df)
-    
-    df = pd.concat(dfs, axis='rows')
-    df.reset_index(drop=True, inplace=True)
-    save_to_csv(df, 'data', 'Aarhus_06072_23105', datetime(2025, 1, 1), datetime(2026, 1, 1))
 
-    return dfs
+        # load
+        load_to_sql(sql_runner, table=observations, df=df, append=True)
 
 
+#extract_multiple()
+#transform_and_load()
 
 
+
+
+
+
+#############################################
+#############################################
 
 url_dmi = 'https://opendataapi.dmi.dk/v2/metObs/collections'
 url_spac = 'https://climate.spac.dk/api/records'
@@ -130,4 +145,3 @@ def etl_example():
     load_to_sql(sql_runner, table=spac, df=df_spac)
 
 
-etl_example()

@@ -63,7 +63,7 @@ def clean_observations(df: pd.DataFrame):
     reset_index(df)
 
     # change date columns dtype to datetime
-    column_with_date = 'properties.observed'
+    column_with_date = ['properties.observed', 'extracted']
     date_formatting(df, column_with_date)
 
     # latitude and longitude
