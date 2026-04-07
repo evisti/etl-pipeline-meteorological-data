@@ -6,5 +6,3 @@ We use Python to assemble data into a Pandas dataframe and store into a PostgreS
 The DMI observation data are time-resolved raw data collected at DMI's observation stations in Denmark and Greenland. It contains a number of parameters including temperature, humidity, wind, precipitation, radiation etc.
 
 The API documentation can be found here: https://www.dmi.dk/friedata/dokumentation-paa-engelsk
-
-A description of the parameters can be found here: https://www.dmi.dk/friedata/dokumentation/meteorological-observations-data
