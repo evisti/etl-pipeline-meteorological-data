@@ -16,23 +16,7 @@ url_dmi = 'https://opendataapi.dmi.dk/v2/metObs/collections'
 url_spac = 'https://climate.spac.dk/api/records'
 
 
-def extract_single(): # virker vist ikke længere
-
-    # specify desired start and end time
-    start_time = datetime(2025, 1, 1)
-    end_time = datetime(2026, 1, 1)
-
-    # specify station and parameters for dmi observations
-    station_id = '23105'
-    parameter = None
-
-    df = get_observations(url_dmi, parameter, station_id, start_time, end_time)
-
-    print(df[df['properties.value'] != 0])
-
-
-
-def extract_multiple(): # Virker fint
+def extract_multiple():
     '''
     Extract all observations from 2025 and write to files
     '''
@@ -94,11 +78,7 @@ def transform_and_load():
 
 
 
-#############################################
-#############################################
 
-url_dmi = 'https://opendataapi.dmi.dk/v2/metObs/collections'
-url_spac = 'https://climate.spac.dk/api/records'
 
 def etl_example():
     ######### EXTRACT #########
