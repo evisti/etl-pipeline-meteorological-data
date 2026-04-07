@@ -1,0 +1,334 @@
+---
+title: "Weather Dashboard"
+format: 
+  dashboard:
+    nav-buttons: [github]
+    github: https://github.com/evisti/etl-pipeline-meteorological-data
+logo: images/specialisterne_logo.png
+---
+
+```{python}
+#| label: load-packages
+
+import pandas as pd
+import geopandas as gpd
+import dayplot as dp
+import matplotlib.pyplot as plt
+import itables
+from pathlib import Path
+from datetime import datetime
+from ipyleaflet import Map, basemaps, GeoData
+```
+
+```{python}
+#| tags: [parameters]
+
+today_date = datetime.today().date
+```
+
+```{python}
+#| label: connect-to-database
+#| message: false
+
+from helper_functions import read_file
+from db_connection import SQLRunner, get_engine
+
+config_file = Path('./db_config.ini')
+sql_runner = SQLRunner(get_engine(config_file))
+
+def query_to_df(sql_file):
+  query = read_file(Path(sql_file))
+  return pd.DataFrame(sql_runner.run_query(query))
+```
+
+
+#  {.sidebar}
+
+<br>
+
+This dashboard shows weather data for [Aarhus Kommune](https://da.wikipedia.org/wiki/Aarhus_Kommune), Denmark
+
+The data were retrived from [Danish Meteorological Institute’s (DMI) Open Data API](https://www.dmi.dk/friedata/dokumentation-paa-engelsk)
+
+<br>
+
+::: {.callout-note collapse="true"}
+## Measurement units
+
+The variables and their measurement units are given below.
+
+|                                      |                      |
+|:-------------------------------------|:---------------------|
+| **Variable**                         | **Unit**             |
+| Temperature                          | °C                   |
+| Humidity                             | %                    |
+| Pressure                             | hPa                  |
+| Wind & wind gust                     | m/s                  |
+| Precipitation                        | mm                   |
+| Snow                                 | cm                   |
+| Visibility                           | m                    |
+| Cloud cover                          | %                    |
+| Radiation                            | W/m^2^               |
+| Sunshine                             | min                  |
+
+Source: [Meteorological Observations Data](https://www.dmi.dk/friedata/dokumentation/meteorological-observations-data).
+:::
+
+# All
+
+
+
+# 2025
+
+
+```{python}
+
+# day averages
+
+def make_dayplot(df, parameter, color, ax, vmax=None):
+    # define figure
+#    fig, ax = plt.subplots(figsize=(10, 4))
+    return  dp.calendar(
+        dates=df.index,
+        values=df[parameter],
+        start_date="2025-01-01",
+        end_date="2025-12-31",
+        week_starts_on='Monday',
+        month_grid=True,
+        cmap=color,
+        vmin=0,
+        vmax=vmax,
+        color_for_none='white',
+        ax=ax
+    )
+#    plt.tight_layout()
+#    plt.show()
+
+
+def upsample(df):
+    # Upsample to 365 days
+    df.set_index('date', inplace = True)
+    df = df.asfreq('D', fill_value=0)
+#    df.reset_index(drop=False, inplace=True)
+    return df
+
+# Precipitation
+precip = query_to_df('sql_queries/accumulated_precip_aarhus_2025.sql')
+
+# Sunshine
+sun = query_to_df('sql_queries/sunshine_aarhus_2025.sql')
+
+# Snow depth
+snow = query_to_df('sql_queries/snow_depth_aarhus_2025.sql')
+snow['date'] = snow['date'].apply(lambda x: x.date())
+snow = snow.replace(-1, 0.25)  # the code -1 means "less than 0.5 cm" --> I'll set it to 0.25
+
+# Max wind
+gust = query_to_df('sql_queries/max_wind_speed_aarhus_2025.sql')
+
+# Mean wind
+wind = query_to_df('sql_queries/mean_wind_speed_aarhus_2025.sql')
+
+dfs = [precip, sun, snow, gust, wind]
+dfs = [upsample(d) for d in dfs]
+dfs = pd.concat(dfs, axis='columns', sort=False)
+```
+
+
+## Row {height="20%"}
+
+```{python}
+#| content: valuebox
+#| title: "Sunny days"
+
+dict(
+  icon = "sun",
+  color = "warning",
+  value = len(dfs[dfs['sunshine'] > 7*60])
+)
+```
+
+```{python}
+#| content: valuebox
+#| title: "Rainy days"
+
+dict(
+  icon = "cloud-rain",
+  color = "light",
+  value = len(dfs[dfs['accum_precip'] > 2.5])
+)
+```
+
+```{python}
+#| content: valuebox
+#| title: "Cloudy days"
+
+dict(
+  icon = "cloud",
+  color = "danger",
+  value = 1
+)
+```
+
+```{python}
+#| content: valuebox
+#| title: "Windy days"
+
+dict(
+  icon = "cloud",
+  color = "light",
+  value = 1
+)
+```
+
+```{python}
+#| content: valuebox
+#| title: "Snowy days"
+
+dict(
+  icon = "snow",
+  color = "primary",
+  value = len(dfs[dfs['snow'] > 0])
+)
+```
+
+
+## Row {height="60%"}
+
+
+### Column {width="20%"}
+
+Sunny day: 7 hours or more of sunshine
+
+Rainy day: 2.5 mm or more of rainfall
+
+
+### Column {width="50%"}
+
+
+
+### Column {width="30%"}
+
+
+```{python}
+#| label: dayplot
+fig, ax = plt.subplots(nrows=3, figsize=(16, 6))
+
+make_dayplot(dfs[['sunshine']], parameter='sunshine', color='Oranges', ax=ax[0])
+make_dayplot(dfs[['accum_precip']], parameter='accum_precip', color='BuGn', ax=ax[1])
+make_dayplot(dfs[['snow']], parameter='snow', color='Blues', ax=ax[2])
+
+# labels
+text_args = dict(x=-4.5, y=3.5, size=45, rotation=90, color="#aaa", va="center")
+l = ax[0].text(s="sun", **text_args)
+l = ax[1].text(s="rain", **text_args)
+l = ax[2].text(s="snow", **text_args)
+
+fig.tight_layout()
+fig.show()
+```
+
+
+
+
+
+
+
+## Row {height="20%"}
+
+### Column {width="40%"}
+
+### Column {width="40%"}
+
+
+
+# Stations
+
+```{python}
+
+stations = query_to_df('sql_queries/active_stations.sql')
+```
+
+## Row {width="10%"}
+
+## Row {width="90%"}
+
+### Column {width="40%"}
+
+```{python}
+
+# define map of Denmark, Greenland, and the Faroe Islands
+m = Map(basemap=basemaps.CartoDB.Positron, center=(68, -16), zoom=3)
+
+# create geopandas dataframe
+gdf = gpd.GeoDataFrame(
+  stations[['latitude', 'longitude', 'stationId', 'name', 'type']], 
+  geometry=gpd.points_from_xy(stations.longitude, stations.latitude)
+  )
+
+geo_data = GeoData(geo_dataframe = gdf,
+    style={'color':'black', 'radius':5, 'fillColor':'#3366cc', 'opacity':0.5, 'weight':1.9, 'fillOpacity':0.6},
+    hover_style={'fillColor':'red' ,'fillOpacity':0.5},
+    point_style={'radius':5, 'color':'red', 'fillOpacity':0.8, 'fillColor':'blue', 'weight':3}
+    )
+
+m.add(geo_data)
+```
+
+
+### Column {width="40%"}
+
+```{python}
+
+stations_render = stations.copy()
+
+stations_render['operationFrom'] = stations_render['operationFrom'].apply(lambda x: x.date())
+stations_render['distanceAarhus'] = stations_render['distanceAarhus'].astype(int)
+
+# rename columns for visual
+stations_render.rename(
+  columns={
+    'stationId': 'Station ID', 
+    'type': 'Type',
+    'name': 'Name',
+    'operationFrom': 'Operation from',
+    'parameters': 'Parameters',
+    'distanceAarhus': 'Distance to Aarhus (km)'
+    }, inplace=True)
+
+# select columns
+stations_render = stations_render[['Station ID', 'Name', 'Type', 'Operation from', 'Distance to Aarhus (km)']]#.sort_values('Distance to Aarhus (km)')
+
+# Displaying the DataFrame as an interactive table with pagination using itables
+itables.options.classes = ["display", "table", "table-bordered", "table-striped"]
+itables.show(stations_render)
+
+```
+
+
+
+# Historical
+
+
+## Row {height="20%"}
+
+## Row {height="40%"}
+
+### Column {width="40%"}
+
+### Column {width="40%"}
+
+
+## Row {height="40%"}
+
+### Column {width="40%"}
+
+### Column {width="40%"}
+
+
+
+# Data
+
+## Row {height="40%"}
+
+## Row {height="60%"}
