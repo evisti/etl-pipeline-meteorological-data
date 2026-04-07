@@ -27,7 +27,7 @@ def reset_index(df: pd.DataFrame) -> pd.DataFrame:
 
 def clean_stations(df: pd.DataFrame):
 
-    print('\nTransform Stations')
+    print('Transform')
 
     # change date columns dtype to datetime
     columns_with_date = [
@@ -57,7 +57,7 @@ def clean_stations(df: pd.DataFrame):
 
 def clean_observations(df: pd.DataFrame):
 
-    print('\nTransform Observations')
+    print('Transform')
     
     # reset index
     reset_index(df)
@@ -85,7 +85,7 @@ def clean_observations(df: pd.DataFrame):
 
 def clean_spac(df: pd.DataFrame):
 
-    print('\nTransform SPAC')
+    print('Transform')
     
     # change date columns dtype to datetime
     column_with_date = 'timestamp'

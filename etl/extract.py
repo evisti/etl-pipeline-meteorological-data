@@ -36,7 +36,7 @@ def construct_datetime_argument(from_time: datetime=None, to_time: datetime=None
 
 
 def get_stations(base_url, station_id: str=None) -> pd.DataFrame:
-    print('\nExtract Stations')
+    print('Extract')
 
     # define query parameters for the request
     query_params = {}
@@ -61,7 +61,7 @@ def get_stations(base_url, station_id: str=None) -> pd.DataFrame:
 
 
 def get_observations(base_url, parameter: str, station_id: str, from_time: datetime, to_time: datetime, limit: int=5000) -> list[dict]:
-    print('\nExtract Observations')
+    print('Extract')
 
     # define query parameters for the request
     query_params = {
@@ -98,7 +98,7 @@ def get_observations(base_url, parameter: str, station_id: str, from_time: datet
 
 
 def get_spac(url, from_time: datetime=None, to_time: datetime=None, limit: int=5000):
-    print('\nExtract SPAC')
+    print('Extract')
     
     # get authorization token from configuration file
     config_file = Path(__file__).parents[1] / 'spac_config.ini'
