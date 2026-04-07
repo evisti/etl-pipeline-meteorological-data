@@ -9,6 +9,7 @@ dayplot==0.5.1
 geopandas==1.1.3
 geopy==2.4.1
 ipyleaflet==0.20.0
+itables
 matplotlib==3.10.8
 
 # Quarto requirements 
